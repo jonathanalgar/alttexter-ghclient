@@ -1,6 +1,6 @@
 # alttexter-ghclient
 
-[![](example.png)](https://github.com/jonathanalgar/langchain/pull/3/files#diff-13f93b90ba1f5e943cfbd17a52a1ab71a43c3dd7797e96f959cc17dccaaac198)
+[![Placeholder image with no contextual information](example.png "Placeholder Image")](https://github.com/jonathanalgar/langchain/pull/3/files#diff-13f93b90ba1f5e943cfbd17a52a1ab71a43c3dd7797e96f959cc17dccaaac198)
 
 ![ci](https://github.com/jonathanalgar/alttexter-ghclient/actions/workflows/build-docker.yml/badge.svg)
 
