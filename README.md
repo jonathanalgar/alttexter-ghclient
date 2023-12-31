@@ -10,7 +10,7 @@
 
 Containerized GitHub action for interacting with the [alttexter](https://github.com/jonathanalgar/alttexter) service.
 
-The script searches for missing alt text and title attributes in markdown-formatted files on commit to a pull request. On match, it bundles the text and images off in a request to the [alttexter](https://github.com/jonathanalgar/alttexter) service for generation. Responses from the service are committed and requested for review.
+The script searches for missing alt text and title attributes in markdown-formatted files on commit to a pull request. On match, it bundles the text and images off in a request to the [alttexter](https://github.com/jonathanalgar/alttexter) service for generation. Responses from the service are committed and a comment on the file posted.
 
 ### In the wild
 
