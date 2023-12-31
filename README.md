@@ -12,6 +12,10 @@ Containerized GitHub action for interacting with the [alttexter](https://github.
 
 The script searches for missing alt text and title attributes in markdown-formatted files on commit to a pull request. On match, it bundles the text and images off in a request to the [alttexter](https://github.com/jonathanalgar/alttexter) service for generation. Responses from the service are committed and requested for review.
 
+### In the wild
+
+* https://github.com/langchain-ai/langchain/pull/15357
+
 ## Usage
 
 First, create a new GitHub action workflow in your repo (eg. `.github/workflows/alttexter.yml`):
