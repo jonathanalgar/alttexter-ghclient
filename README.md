@@ -80,4 +80,5 @@ Once that's done you can open a PR with files that need alt text and/or title at
 ## TODO
 
 - [ ] Better error handling
+- [ ] Fix limitations identified in [LangChain repo batch update](https://github.com/jonathanalgar/langchain/pull/3#issue-2060944702).
 - [ ] Extend this TODO list
