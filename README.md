@@ -87,4 +87,5 @@ Once that's done you can open a PR with files that need alt text and/or title at
 ## TODO
 
 - [ ] Better error handling
+- [ ] Unit tests
 - [ ] Extend this TODO list
