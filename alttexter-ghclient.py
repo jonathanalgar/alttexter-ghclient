@@ -55,18 +55,19 @@ class ImageMetadataUpdater:
             _, ext = os.path.splitext(clean_path)
 
             # Append images to corresponding lists based on type
-        if clean_path.startswith(('http://', 'https://')):
-            if ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
-                image_urls.append((alt_text, image_path))
+            if clean_path.startswith(('http://', 'https://')):
+                if ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
+                    image_urls.append((alt_text, image_path))
+                else:
+                    logging.info(f"Non-standard image URL (no extension): {image_path}")
+                    image_urls.append((alt_text, image_path))
+            elif ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
+                local_images.append((alt_text, clean_path, title))
             else:
-                logging.info(f"Non-standard image URL (no extension): {image_path}")
-                image_urls.append((alt_text, image_path))
-        elif ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
-            local_images.append((alt_text, clean_path, title))
-        else:
-            logging.info(f"Unsupported local image type: {image_path}")
+                logging.info(f"Unsupported local image type: {image_path}")
 
         logging.info(f"Total local images found: {len(local_images)}, Total image URLs found: {len(image_urls)}")
+
         return local_images, image_urls
 
     def encode_images(self, images, base_dir, repo_root):
