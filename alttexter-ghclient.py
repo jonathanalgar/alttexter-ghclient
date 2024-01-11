@@ -24,7 +24,41 @@ class ImageMetadataUpdater:
     # Pattern to identify markdown image syntax
     IMAGE_PATTERN = re.compile(r'!\[(.*?)\]\((.*?)\s*(?:\"(.*?)\")?\)')
 
-    def extract_image_paths(self, markdown_content):
+    async def check_url_content_type(self, url, session):
+        """
+        Makes a GET request to a URL to check its content type but limits the download size.
+
+        Args:
+            url (str): The URL to check.
+            session (aiohttp.ClientSession): The session for making HTTP requests.
+
+        Returns:
+            bool: True if the content type is a supported image, False otherwise.
+        """
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        max_content_length = 1024
+
+        extension_to_mime = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp'
+        }
+        supported_mime_types = [extension_to_mime[ext] for ext in SUPPORTED_IMAGE_EXTENSIONS if ext in extension_to_mime]
+
+        try:
+            async with session.get(url, headers=headers, allow_redirects=True) as response:
+                if response.status == 200:
+                    content_type = response.headers.get('Content-Type', '')
+                    await response.content.read(max_content_length)
+                    return any(content_type.startswith(mime) for mime in supported_mime_types)
+                return False
+        except Exception as e:
+            logging.error(f"Error checking content type for URL {url}: {e}")
+            return False
+
+    async def extract_image_paths(self, markdown_content, session):
         """
         Extracts image paths and details from markdown content.
 
@@ -54,20 +88,27 @@ class ImageMetadataUpdater:
             clean_path, _, _ = image_path.partition('?')
             _, ext = os.path.splitext(clean_path)
 
-            # Append images to corresponding lists based on type
-            if clean_path.startswith(('http://', 'https://')):
+            # Local image files
+            if not clean_path.startswith(('http://', 'https://')):
+                if ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
+                    local_images.append((alt_text, clean_path, title))
+                else:
+                    logging.info(f"Unsupported local image type: {image_path}")
+                continue
+
+            # URLs
+            if ext:
                 if ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
                     image_urls.append((alt_text, image_path))
                 else:
-                    logging.info(f"Non-standard image URL (no extension): {image_path}")
-                    image_urls.append((alt_text, image_path))
-            elif ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
-                local_images.append((alt_text, clean_path, title))
+                    logging.info(f"Unsupported image URL extension: {clean_path}")
             else:
-                logging.info(f"Unsupported local image type: {image_path}")
+                if await self.check_url_content_type(clean_path, session):
+                    image_urls.append((alt_text, image_path))
+                else:
+                    logging.info(f"URL does not point to a supported image type: {clean_path}")
 
         logging.info(f"Total local images found: {len(local_images)}, Total image URLs found: {len(image_urls)}")
-
         return local_images, image_urls
 
     def encode_images(self, images, base_dir, repo_root):
@@ -225,7 +266,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
     with open(file.filename, 'r', encoding='utf-8') as md_file:
         markdown_content = md_file.read()
 
-    local_images, image_urls = metadata_updater.extract_image_paths(markdown_content)
+    local_images, image_urls = await metadata_updater.extract_image_paths(markdown_content, session)
 
     base_dir = os.path.dirname(file.filename)
     repo_root = os.getcwd()
