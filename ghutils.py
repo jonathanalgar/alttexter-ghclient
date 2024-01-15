@@ -10,7 +10,7 @@ from github import Github
 class GitHubHandler:
     """
     Manages interactions with GitHub using PyGithub, focusing on pull request operations.
-    
+
     Attributes:
         github_obj (Github): PyGithub instance for GitHub API interactions.
         repo (Repository): GitHub repository associated with the pull request.
@@ -100,6 +100,7 @@ class GitHubHandler:
         except subprocess.CalledProcessError as e:
             logging.error(f'Error during git operations: {e}')
             return False
+
 
 class RateLimiter:
     """
