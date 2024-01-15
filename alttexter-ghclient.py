@@ -241,7 +241,7 @@ class ImageMetadataUpdater:
                 alt_text = metadata["alt_text"]
                 title = metadata.get("title", image_title or "")
                 if is_ipynb:
-                    return f'![{alt_text}]({image_path})'
+                    return f"![{alt_text}]({image_path} '{title}')"
                 else:
                     return f'![{alt_text}]({image_path} "{title}")'
             else:
@@ -287,10 +287,12 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
     if not is_ipynb:
         # For .md and .mdx files, check if all images have both alts and titles
         local_complete_check = all(alt and title for alt, _, title in local_images)
+
     # For .ipynb files, check if all images have alts
     if local_complete_check and url_complete_check:
         logging.info(f"No update needed for {file.filename}")
         return
+    
     success, response_data = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
 
     if success:
