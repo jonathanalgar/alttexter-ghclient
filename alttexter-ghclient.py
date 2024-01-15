@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.DEBUG,
 SUPPORTED_FILE_EXTENSIONS = ('.md', '.mdx', '.ipynb')
 SUPPORTED_IMAGE_EXTENSIONS = ('.png', '.gif', '.jpg', '.jpeg', '.webp')
 
+
 class ImageMetadataUpdater:
     """
     Handles retrieval and updating of image metadata in markdown files.
@@ -100,16 +101,17 @@ class ImageMetadataUpdater:
                 continue
 
             # URLs
-            if ext:
-                if ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
-                    image_urls.append((alt_text, image_path))
-                else:
-                    logging.info(f"Unsupported image URL extension: {clean_path}")
+            if (
+                ext
+                and ext.lower() in SUPPORTED_IMAGE_EXTENSIONS
+                or not ext
+                and await self.check_url_content_type(clean_path, session)
+            ):
+                image_urls.append((alt_text, image_path))
+            elif ext and ext.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
+                logging.info(f"Unsupported image URL extension: {clean_path}")
             else:
-                if await self.check_url_content_type(clean_path, session):
-                    image_urls.append((alt_text, image_path))
-                else:
-                    logging.info(f"URL does not point to a supported image type: {clean_path}")
+                logging.info(f"URL does not point to a supported image type: {clean_path}")
 
         logging.info(f"Total local images found: {len(local_images)}, Total image URLs found: {len(image_urls)}")
         return local_images, image_urls
@@ -225,7 +227,7 @@ class ImageMetadataUpdater:
 
         def replacement(match):
             image_alt, image_path, image_title = match.groups()
-            
+
             if image_path.startswith(('http://', 'https://')):
                 full_path = image_path
             elif image_path.startswith('/'):
@@ -248,6 +250,7 @@ class ImageMetadataUpdater:
 
         updated_markdown_content = self.IMAGE_PATTERN.sub(replacement, markdown_content)
         return updated_markdown_content, images_not_updated
+
 
 async def process_file(session, file, alttexter_endpoint, github_handler, metadata_updater, rate_limiter):
     """
@@ -281,18 +284,13 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
     local_complete_check = all(alt for alt, _, _ in local_images)
     url_complete_check = all(alt for alt, _ in image_urls)
 
-    if is_ipynb:
-        # For .ipynb files, check if all images have alts
-        if local_complete_check and url_complete_check:
-            logging.info(f"No update needed for {file.filename}")
-            return
-    else:
+    if not is_ipynb:
         # For .md and .mdx files, check if all images have both alts and titles
         local_complete_check = all(alt and title for alt, _, title in local_images)
-        if local_complete_check and url_complete_check:
-            logging.info(f"No update needed for {file.filename}")
-            return
-
+    # For .ipynb files, check if all images have alts
+    if local_complete_check and url_complete_check:
+        logging.info(f"No update needed for {file.filename}")
+        return
     success, response_data = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
 
     if success:
@@ -323,6 +321,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
         if not updated_content:
             github_handler.post_comment(f"Failed to update image metadata for file: `{file.filename}`. Please try again later.")
 
+
 async def main():
     """
     Main asynchronous function to run the script.
@@ -341,7 +340,7 @@ async def main():
         files = github_handler.pr.get_files()
         logging.debug(f"Files in PR: {[file.filename for file in files]}")
 
-        tasks = [asyncio.create_task(process_file(session, file, alttexter_endpoint, github_handler, metadata_updater, rate_limiter)) 
+        tasks = [asyncio.create_task(process_file(session, file, alttexter_endpoint, github_handler, metadata_updater, rate_limiter))
                  for file in files if file.filename.lower().endswith(SUPPORTED_FILE_EXTENSIONS)]
 
         logging.debug(f"Processing tasks: {tasks}")
