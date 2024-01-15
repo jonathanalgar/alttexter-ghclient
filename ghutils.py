@@ -10,7 +10,7 @@ from github import Github
 class GitHubHandler:
     """
     Manages interactions with GitHub using PyGithub, focusing on pull request operations.
-    
+
     Attributes:
         github_obj (Github): PyGithub instance for GitHub API interactions.
         repo (Repository): GitHub repository associated with the pull request.
