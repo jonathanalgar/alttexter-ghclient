@@ -20,6 +20,8 @@ class ImageMetadataUpdater:
     """
     Handles retrieval and updating of image metadata in markdown files.
     """
+    def __init__(self):
+        pass
 
     # Pattern to identify markdown image syntax
     IMAGE_PATTERN = re.compile(r'!\[(.*?)\]\((.*?)\s*(?:\"(.*?)\")?\)')
@@ -48,6 +50,7 @@ class ImageMetadataUpdater:
         supported_mime_types = [extension_to_mime[ext] for ext in SUPPORTED_IMAGE_EXTENSIONS if ext in extension_to_mime]
 
         try:
+            # async request to get the content type of the URL
             async with session.get(url, headers=headers, allow_redirects=True) as response:
                 if response.status == 200:
                     content_type = response.headers.get('Content-Type', '')
@@ -149,7 +152,6 @@ class ImageMetadataUpdater:
                 logging.info(f"Unsupported image type: {image_path} (Full path: {full_image_path})")
         return encoded_images
 
-
     def encode_image(self, image_path):
         """
         Encodes a single image to a base64 string.
@@ -178,6 +180,8 @@ class ImageMetadataUpdater:
         Returns:
             tuple: Indicates success and response data or error info.
         """
+        ALTTEXTER_TIMEOUT = 240
+
         image_urls_only = [url for _, url in image_urls]
 
         await rate_limiter.wait_for_token()
@@ -192,7 +196,7 @@ class ImageMetadataUpdater:
             "image_urls": image_urls_only
         }
         try:
-            response = await session.post(alttexter_endpoint, json=payload, headers=headers, timeout=240)
+            response = await session.post(alttexter_endpoint, json=payload, headers=headers, timeout=ALTTEXTER_TIMEOUT)
             response.raise_for_status()
             response_data = await response.json()
             logging.info(f"Full response from ALTTEXTER_ENDPOINT: {response_data}")
@@ -215,7 +219,7 @@ class ImageMetadataUpdater:
             is_ipynb (bool): Flag for Jupyter Notebook files.
 
         Returns:
-            tuple: Updated markdown content and list of unupdated images.
+            tuple: Updated markdown content and list of images not updated.
         """
         images_not_updated = []
 
@@ -321,16 +325,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
 
 async def main():
     """
-    Main function to process markdown files in a GitHub pull request.
-
-    Initializes handlers for GitHub and image metadata updates. Processes each
-    markdown file in the pull request asynchronously to update image metadata.
-
-    Environment variables:
-        ALTTEXTER_RATEMINUTE: Rate limit for API requests per minute.
-        GITHUB_REPOSITORY: Repository name.
-        PR_NUMBER: Pull request number.
-        ALTTEXTER_ENDPOINT: Endpoint URL for fetching image metadata.
+    Main asynchronous function to run the script.
     """
     rate_limit = int(os.getenv('ALTTEXTER_RATEMINUTE'))
     rate_limiter = RateLimiter(rate=rate_limit, per=60)
