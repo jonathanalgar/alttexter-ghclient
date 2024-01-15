@@ -176,7 +176,7 @@ class ImageMetadataUpdater:
             markdown_content (str): Markdown content with images.
             encoded_images (dict): Base64 encoded local images.
             image_urls (list): Image URLs.
-            alttexter_endpoint (str): Endpoint for metadata service.
+            alttexter_endpoint (str): Metadata service URL.
             rate_limiter (RateLimiter): Rate limiter for requests.
 
         Returns:
