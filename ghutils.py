@@ -102,6 +102,22 @@ class GitHubHandler:
             return False
 
 
+    def get_file_status(github_handler, file_path):
+        """
+        Retrieves the status of a file in the context of the pull request.
+
+        The method checks the list of files in the pull request and returns the status
+        of the specified file. The status can indicate whether the file is added, modified, or deleted.
+
+        Args:
+            file_path (str): The relative path of the file in the repository for which the status is required.
+        """
+        pr_files = github_handler.pr.get_files()
+        for file in pr_files:
+            if file.filename == file_path:
+                return file.status
+        return None
+    
 class RateLimiter:
     """
     Token bucket algorithm-based rate limiter for API requests.
