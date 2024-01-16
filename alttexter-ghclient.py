@@ -25,7 +25,7 @@ class ImageMetadataUpdater:
         pass
 
     # Pattern to identify markdown image syntax
-    IMAGE_PATTERN = re.compile(r'!\[(.*?)\]\((.*?)\s*(?:\"(.*?)\")?\)')
+    IMAGE_PATTERN = re.compile(r'!\[(.*?)\]\((.*?)\s*(?:\"(.*?)\"|\'(.*?)\'|\))?\)')
 
     async def check_url_content_type(self, url, session):
         """
@@ -51,7 +51,7 @@ class ImageMetadataUpdater:
         supported_mime_types = [extension_to_mime[ext] for ext in SUPPORTED_IMAGE_EXTENSIONS if ext in extension_to_mime]
 
         try:
-            # async request to get the content type of the URL
+            # async request to get the content type of the URL as last resort
             async with session.get(url, headers=headers, allow_redirects=True) as response:
                 if response.status == 200:
                     content_type = response.headers.get('Content-Type', '')
@@ -80,17 +80,16 @@ class ImageMetadataUpdater:
         for image_info in images:
             logging.debug(f"Regex match: {image_info}")
 
-            if len(image_info) == 3:
-                alt_text, image_path, title = image_info
-            elif len(image_info) == 2:
-                alt_text, image_path = image_info
-                title = ""
-            else:
-                logging.warning(f"Unexpected match length: {len(image_info)} for match: {image_info}")
-                continue
+            alt_text, image_path = image_info[:2]
+
+            title_double, title_single = image_info[2:4]
+            title = title_double or title_single
 
             clean_path, _, _ = image_path.partition('?')
             _, ext = os.path.splitext(clean_path)
+
+            if not title:
+                title = None
 
             # Local image files
             if not clean_path.startswith(('http://', 'https://')):
@@ -107,7 +106,7 @@ class ImageMetadataUpdater:
                 or not ext
                 and await self.check_url_content_type(clean_path, session)
             ):
-                image_urls.append((alt_text, image_path))
+                image_urls.append((alt_text, image_path, title))
             elif ext and ext.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
                 logging.info(f"Unsupported image URL extension: {clean_path}")
             else:
@@ -184,7 +183,7 @@ class ImageMetadataUpdater:
         """
         ALTTEXTER_TIMEOUT = 240
 
-        image_urls_only = [url for _, url in image_urls]
+        image_urls_only = [url for _, url, _ in image_urls]
 
         await rate_limiter.wait_for_token()
         logging.info('Sending request to ALTTEXTER_ENDPOINT')
@@ -209,7 +208,7 @@ class ImageMetadataUpdater:
             logging.error(f"Full server response: {response_text}")
             return False, {"error": str(e)}
 
-    def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb=False):
+    def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb):
         """
         Updates markdown content with new alt-text and title attributes.
 
@@ -226,7 +225,10 @@ class ImageMetadataUpdater:
         images_not_updated = []
 
         def replacement(match):
-            image_alt, image_path, image_title = match.groups()
+            groups = match.groups()
+            image_alt, image_path = groups[:2]
+            title_double, title_single = groups[2:4] if len(groups) == 4 else ("", "")
+            image_title = title_double or title_single or ""
 
             if image_path.startswith(('http://', 'https://')):
                 full_path = image_path
@@ -281,18 +283,13 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
 
     is_ipynb = file.filename.lower().endswith('.ipynb')
 
-    local_complete_check = all(alt for alt, _, _ in local_images)
-    url_complete_check = all(alt for alt, _ in image_urls)
+    local_complete_check = all(alt and title for alt, _, title in local_images)
+    url_complete_check = all(alt and title for alt, _, title in image_urls)
 
-    if not is_ipynb:
-        # For .md and .mdx files, check if all images have both alts and titles
-        local_complete_check = all(alt and title for alt, _, title in local_images)
-
-    # For .ipynb files, check if all images have alts
     if local_complete_check and url_complete_check:
         logging.info(f"No update needed for {file.filename}")
         return
-    
+
     success, response_data = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
 
     if success:
