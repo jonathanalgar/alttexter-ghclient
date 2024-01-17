@@ -102,7 +102,7 @@ class GitHubHandler:
             return False
 
 
-    def get_file_status(github_handler, file_path):
+    def get_file_status(self, file_path):
         """
         Retrieves the status of a file in the context of the pull request.
 
@@ -112,12 +112,12 @@ class GitHubHandler:
         Args:
             file_path (str): The relative path of the file in the repository for which the status is required.
         """
-        pr_files = github_handler.pr.get_files()
-        for file in pr_files:
-            if file.filename == file_path:
-                return file.status
-        return None
-    
+        pr_files = self.pr.get_files()
+        return next(
+            (file.status for file in pr_files if file.filename == file_path), None
+        )
+
+
 class RateLimiter:
     """
     Token bucket algorithm-based rate limiter for API requests.

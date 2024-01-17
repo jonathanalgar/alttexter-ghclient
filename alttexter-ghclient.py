@@ -41,7 +41,7 @@ class ImageMetadataUpdater:
         headers = {'User-Agent': 'Mozilla/5.0'}
 
         # Limiting download size to quickly verify if the URL points to a supported image type
-        max_content_length = 1024 
+        max_content_length = 1024
 
         extension_to_mime = {
             '.jpg': 'image/jpeg',
@@ -216,7 +216,6 @@ class ImageMetadataUpdater:
 
         return response_structure
 
-
     def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb):
         """
         Updates markdown content with new alt-text and title attributes.
@@ -334,6 +333,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
     except Exception as e:
         logging.error(f"Error processing file {file.filename}: {e}")
         github_handler.post_comment(f"Error processing file `{file.filename}`. Please check the logs for more details.")
+
 
 async def main():
     """
