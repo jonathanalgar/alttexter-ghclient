@@ -304,8 +304,8 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
         response = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
 
         if not response["success"]:
-            logging.error(f"Failed to fetch image metadata for {file.filename}: {response['error']}")
-            github_handler.post_comment(f"Error processing file `{file.filename}`. Please try again later.")
+            logging.error("Failed to get a response from ALTTEXTER_ENDPOINT.")
+            github_handler.post_comment(f"Failed to get a response from the ALTTEXTER_ENDPOINT for file `{file.filename}`. Please check the logs for more details.")
             return
 
         image_metadata = response["data"].get('images', [])
@@ -333,7 +333,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
 
     except Exception as e:
         logging.error(f"Error processing file {file.filename}: {e}")
-        github_handler.post_comment(f"Error processing file `{file.filename}`. Please try again later.")
+        github_handler.post_comment(f"Error processing file `{file.filename}`. Please check the logs for more details.")
 
 async def main():
     """
