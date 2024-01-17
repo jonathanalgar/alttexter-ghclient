@@ -39,7 +39,9 @@ class ImageMetadataUpdater:
             bool: True if the content type is a supported image, False otherwise.
         """
         headers = {'User-Agent': 'Mozilla/5.0'}
-        max_content_length = 1024
+
+        # Limiting download size to quickly verify if the URL points to a supported image type
+        max_content_length = 1024 
 
         extension_to_mime = {
             '.jpg': 'image/jpeg',
@@ -77,6 +79,7 @@ class ImageMetadataUpdater:
         local_images = []
         image_urls = []
 
+        # Parsing the image details: alt text, path, and optional title.
         for image_info in images:
             logging.debug(f"Regex match: {image_info}")
 
@@ -128,6 +131,8 @@ class ImageMetadataUpdater:
             dict: Mapping of image paths to base64 encoded strings.
         """
         encoded_images = {}
+
+        # Encoding local images to base64 strings, handling both direct and relative paths.
         for _, image_path, _ in images:
             if image_path.startswith('/'):
                 full_image_path = os.path.join(repo_root, image_path.lstrip('/'))
@@ -146,7 +151,6 @@ class ImageMetadataUpdater:
                     logging.info(f"Image not found in repository: {image_path}")
                     continue
 
-            # Encode if it's a supported image type
             if image_path.lower().endswith(SUPPORTED_IMAGE_EXTENSIONS):
                 encoded_images[image_path] = self.encode_image(full_image_path)
             else:
@@ -183,6 +187,8 @@ class ImageMetadataUpdater:
         """
         ALTTEXTER_TIMEOUT = 240
 
+        response_structure = {"success": False, "data": None}
+
         image_urls_only = [url for _, url, _ in image_urls]
 
         await rate_limiter.wait_for_token()
@@ -197,16 +203,19 @@ class ImageMetadataUpdater:
             "image_urls": image_urls_only
         }
         try:
-            response = await session.post(alttexter_endpoint, json=payload, headers=headers, timeout=ALTTEXTER_TIMEOUT)
-            response.raise_for_status()
-            response_data = await response.json()
-            logging.info(f"Full response from ALTTEXTER_ENDPOINT: {response_data}")
-            return True, response_data
+            async with session.post(alttexter_endpoint, json=payload, headers=headers, timeout=ALTTEXTER_TIMEOUT) as response:
+                response.raise_for_status()
+                response_structure["data"] = await response.json()
+                response_structure["success"] = True
+        except asyncio.TimeoutError:
+            logging.error('Request to ALTTEXTER_ENDPOINT timed out')
+        except aiohttp.ClientResponseError as e:
+            logging.error(f'HTTP Response Error: {e}')
         except Exception as e:
-            logging.error(f"Error occurred: {e}")
-            response_text = await response.text()
-            logging.error(f"Full server response: {response_text}")
-            return False, {"error": str(e)}
+            logging.error(f'An unexpected error occurred: {e}')
+
+        return response_structure
+
 
     def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb):
         """
@@ -250,6 +259,7 @@ class ImageMetadataUpdater:
                 images_not_updated.append(image_path)
                 return match.group(0)
 
+        # Replacing the existing image markdown syntax with updated alt text and title attributes
         updated_markdown_content = self.IMAGE_PATTERN.sub(replacement, markdown_content)
         return updated_markdown_content, images_not_updated
 
@@ -272,28 +282,33 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
         logging.info(f"Skipping non-markdown formatted file: {file.filename}")
         return
 
-    with open(file.filename, 'r', encoding='utf-8') as md_file:
-        markdown_content = md_file.read()
+    try:
+        with open(file.filename, 'r', encoding='utf-8') as md_file:
+            markdown_content = md_file.read()
 
-    local_images, image_urls = await metadata_updater.extract_image_paths(markdown_content, session)
+        local_images, image_urls = await metadata_updater.extract_image_paths(markdown_content, session)
 
-    base_dir = os.path.dirname(file.filename)
-    repo_root = os.getcwd()
-    encoded_images = metadata_updater.encode_images(local_images, base_dir, repo_root)
+        base_dir = os.path.dirname(file.filename)
+        repo_root = os.getcwd()
+        encoded_images = metadata_updater.encode_images(local_images, base_dir, repo_root)
 
-    is_ipynb = file.filename.lower().endswith('.ipynb')
+        is_ipynb = file.filename.lower().endswith('.ipynb')
 
-    local_complete_check = all(alt and title for alt, _, title in local_images)
-    url_complete_check = all(alt and title for alt, _, title in image_urls)
+        local_complete_check = all(alt and title for alt, _, title in local_images)
+        url_complete_check = all(alt and title for alt, _, title in image_urls)
 
-    if local_complete_check and url_complete_check:
-        logging.info(f"No update needed for {file.filename}")
-        return
+        if local_complete_check and url_complete_check:
+            logging.info(f"No update needed for {file.filename}")
+            return
 
-    success, response_data = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
+        response = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
 
-    if success:
-        image_metadata = response_data.get('images', [])
+        if not response["success"]:
+            logging.error(f"Failed to fetch image metadata for {file.filename}: {response['error']}")
+            github_handler.post_comment(f"Error processing file `{file.filename}`. Please try again later.")
+            return
+
+        image_metadata = response["data"].get('images', [])
         updated_content, images_not_updated = metadata_updater.update_image_metadata(
             markdown_content, image_metadata, base_dir, repo_root, is_ipynb
         )
@@ -304,22 +319,21 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
                 md_file.write(updated_content)
 
             commit_message = f"Update image alt and title attributes in {file.filename}"
-            if commit_push_successful := github_handler.commit_and_push(
-                [file.filename], commit_message
-            ):
+            if commit_push_successful := github_handler.commit_and_push([file.filename], commit_message):
                 review_message = "Please check the LLM generated alt-text and title attributes in this file as they may contain inaccuracies."
-                if response_data.get('run_url'):
-                    review_message += " [Explore how the LLM generated them.](" + response_data['run_url'] + ")"
+                if run_url := response["data"].get('run_url'):
+                    review_message += f" [Explore how the LLM generated them.]({run_url})"
                 github_handler.post_generic_review_comment(file.filename, review_message)
             else:
                 logging.error(f"Failed to commit and push changes for {file.filename}")
         elif images_not_updated:
             logging.info(f"Some images in {file.filename} were not updated: {images_not_updated}")
-    else:
-        logging.error(f"Failed to fetch image metadata for {file.filename}: {response_data.get('error', 'Unknown error')}")
-        if not updated_content:
-            github_handler.post_comment(f"Failed to update image metadata for file: `{file.filename}`. Please try again later.")
+        else:
+            logging.info(f"Metadata for {file.filename} is already up to date.")
 
+    except Exception as e:
+        logging.error(f"Error processing file {file.filename}: {e}")
+        github_handler.post_comment(f"Error processing file `{file.filename}`. Please try again later.")
 
 async def main():
     """
