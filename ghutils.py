@@ -69,7 +69,8 @@ class GitHubHandler:
         Returns:
             bool: True if successful, False otherwise.
         """
-        logging.info("Initiating commit and push process.")
+        file_paths_str = "[" + ", ".join(updated_files) + "]"
+        logging.info(f"{file_paths_str} Initiating commit and push process")
 
         try:
             # Configure Git to allow operations in the current directory
@@ -83,24 +84,23 @@ class GitHubHandler:
                 commit_result = subprocess.run(['git', 'commit', '-m', commit_message], capture_output=True, text=True)
 
                 if commit_result.returncode == 0:
-                    logging.info("Changes committed successfully.")
+                    logging.info(f"{file_paths_str} Changes committed successfully")
                     push_result = subprocess.run(['git', 'push'], capture_output=True, text=True)
                     if push_result.returncode == 0:
-                        logging.info("Changes pushed to remote repository successfully.")
+                        logging.info(f"{file_paths_str} Changes pushed to remote repository successfully.")
                         return True
                     else:
-                        logging.error("Failed to push changes.")
+                        logging.error(f"{file_paths_str} Failed to push changes")
                         return False
                 else:
-                    logging.error("Failed to commit changes.")
+                    logging.error(f"{file_paths_str} Failed to commit changes")
                     return False
             else:
-                logging.info("No changes to commit.")
+                logging.info(f"{file_paths_str} No changes to commit")
                 return False
         except subprocess.CalledProcessError as e:
-            logging.error(f'Error during git operations: {e}')
+            logging.error(f"{file_paths_str} Error during git operations: {e}")
             return False
-
 
     def get_file_status(self, file_path):
         """
@@ -141,17 +141,17 @@ class RateLimiter:
         self.allowance = rate
         self.last_check = time.monotonic()
 
-    async def wait_for_token(self):
+    async def wait_for_token(self, file_path):
         """
         Waits for token availability based on the rate limit before proceeding with a request.
         """
         while self.allowance < 1:
-            logging.info("Rate limit reached. Waiting for token availability...")
-            await asyncio.sleep(1)
+            logging.info(f"[{file_path}] Rate limit reached. Waiting for token availability...")
+            await asyncio.sleep(5)
             current_time = time.monotonic()
             time_passed = current_time - self.last_check
             self.last_check = current_time
             self.allowance += time_passed * (self.rate / self.per)
             self.allowance = min(self.allowance, self.rate)
-        logging.info("Token available. Proceeding with request.")
+        logging.info(f"[{file_path}] Token available. Proceeding with request.")
         self.allowance -= 1

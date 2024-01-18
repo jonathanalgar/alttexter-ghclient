@@ -27,7 +27,7 @@ class ImageMetadataUpdater:
     # Pattern to identify markdown image syntax
     IMAGE_PATTERN = re.compile(r'!\[(.*?)\]\((.*?)\s*(?:\"(.*?)\"|\'(.*?)\'|\))?\)')
 
-    async def check_url_content_type(self, url, session):
+    async def check_url_content_type(self, url, file_path, session):
         """
         Makes a GET request to a URL to check its content type but limits the download size.
 
@@ -61,10 +61,10 @@ class ImageMetadataUpdater:
                     return any(content_type.startswith(mime) for mime in supported_mime_types)
                 return False
         except Exception as e:
-            logging.error(f"Error checking content type for URL {url}: {e}")
+            logging.error(f"[{file_path}] Error checking content type for URL {url}: {e}")
             return False
 
-    async def extract_image_paths(self, markdown_content, session):
+    async def extract_image_paths(self, markdown_content, file_path, session):
         """
         Extracts image paths and details from markdown content.
 
@@ -81,7 +81,7 @@ class ImageMetadataUpdater:
 
         # Parsing the image details: alt text, path, and optional title.
         for image_info in images:
-            logging.debug(f"Regex match: {image_info}")
+            logging.debug(f"[{file_path}] Regex match: {image_info}")
 
             alt_text, image_path = image_info[:2]
 
@@ -99,7 +99,7 @@ class ImageMetadataUpdater:
                 if ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
                     local_images.append((alt_text, clean_path, title))
                 else:
-                    logging.info(f"Unsupported local image type: {image_path}")
+                    logging.info(f"[{file_path}] Unsupported local image type: {image_path}")
                 continue
 
             # URLs
@@ -107,18 +107,18 @@ class ImageMetadataUpdater:
                 ext
                 and ext.lower() in SUPPORTED_IMAGE_EXTENSIONS
                 or not ext
-                and await self.check_url_content_type(clean_path, session)
+                and await self.check_url_content_type(clean_path, file_path, session)
             ):
                 image_urls.append((alt_text, image_path, title))
             elif ext and ext.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
-                logging.info(f"Unsupported image URL extension: {clean_path}")
+                logging.info(f"[{file_path}] Unsupported image URL extension: {clean_path}")
             else:
-                logging.info(f"URL does not point to a supported image type: {clean_path}")
+                logging.info(f"[{file_path}] URL does not point to a supported image type: {clean_path}")
 
-        logging.info(f"Total local images found: {len(local_images)}, Total image URLs found: {len(image_urls)}")
+        logging.info(f"[{file_path}] Total local images found: {len(local_images)}, Total image URLs found: {len(image_urls)}")
         return local_images, image_urls
 
-    def encode_images(self, images, base_dir, repo_root):
+    def encode_images(self, images, base_dir, file_path, repo_root):
         """
         Encodes local images in base64 format.
 
@@ -139,22 +139,22 @@ class ImageMetadataUpdater:
             else:
                 full_image_path = os.path.join(base_dir, image_path)
 
-            logging.debug(f"Calculated full image path: {full_image_path}")
+            logging.debug(f"[{file_path}] Calculated full image path: {full_image_path}")
 
             if not os.path.exists(full_image_path):
-                logging.debug(f"Direct path not found, searching in repository: {image_path}")
+                logging.debug(f"[{file_path}] Direct path not found, searching in repository: {image_path}")
                 search_path = os.path.join(repo_root, '**', os.path.basename(image_path))
                 if search_results := glob.glob(search_path, recursive=True):
                     full_image_path = search_results[0]  # Take the first match
-                    logging.debug(f"Found image at: {full_image_path}")
+                    logging.debug(f"[{file_path}] Found image at: {full_image_path}")
                 else:
-                    logging.info(f"Image not found in repository: {image_path}")
+                    logging.info(f"[{file_path}] Image not found in repository: {image_path}")
                     continue
 
             if image_path.lower().endswith(SUPPORTED_IMAGE_EXTENSIONS):
                 encoded_images[image_path] = self.encode_image(full_image_path)
             else:
-                logging.info(f"Unsupported image type: {image_path} (Full path: {full_image_path})")
+                logging.info(f"[{file_path}] Unsupported image type: {image_path} (Full path: {full_image_path})")
         return encoded_images
 
     def encode_image(self, image_path):
@@ -170,7 +170,7 @@ class ImageMetadataUpdater:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
 
-    async def get_image_metadata(self, session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter):
+    async def get_image_metadata(self, session, markdown_content, file_path, encoded_images, image_urls, alttexter_endpoint, rate_limiter):
         """
         Asynchronously retrieves image metadata from ALTTEXTER_ENDPOINT.
 
@@ -191,8 +191,8 @@ class ImageMetadataUpdater:
 
         image_urls_only = [url for _, url, _ in image_urls]
 
-        await rate_limiter.wait_for_token()
-        logging.info('Sending request to ALTTEXTER_ENDPOINT')
+        await rate_limiter.wait_for_token(file_path)
+        logging.info(f"[{file_path}] Sending request to ALTTEXTER_ENDPOINT")
         headers = {
             "Content-Type": "application/json",
             "X-API-Token": os.getenv('ALTTEXTER_TOKEN')
@@ -208,15 +208,15 @@ class ImageMetadataUpdater:
                 response_structure["data"] = await response.json()
                 response_structure["success"] = True
         except asyncio.TimeoutError:
-            logging.error('Request to ALTTEXTER_ENDPOINT timed out')
+            logging.error(f"[{file_path}] Request to ALTTEXTER_ENDPOINT timed out")
         except aiohttp.ClientResponseError as e:
-            logging.error(f'HTTP Response Error: {e}')
+            logging.error(f"[{file_path}] HTTP Response Error: {e}")
         except Exception as e:
-            logging.error(f'An unexpected error occurred: {e}')
+            logging.error(f"[{file_path}] An unexpected error occurred: {e}")
 
         return response_structure
 
-    def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb):
+    def update_image_metadata(self, markdown_content, file_path, image_metadata, base_dir, repo_root, is_ipynb):
         """
         Updates markdown content with new alt-text and title attributes.
 
@@ -275,64 +275,66 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
         metadata_updater (ImageMetadataUpdater): Metadata updater.
         rate_limiter (RateLimiter): API request rate limiter.
     """
-    logging.info(f"Starting to process file: {file.filename}")
+    file_path = file.filename
 
-    if not file.filename.lower().endswith(SUPPORTED_FILE_EXTENSIONS):
-        logging.info(f"Skipping non-markdown formatted file: {file.filename}")
+    logging.info(f"[{file_path}] Starting to process file")
+
+    if not file_path.lower().endswith(SUPPORTED_FILE_EXTENSIONS):
+        logging.info(f"[{file_path}] Skipping non-markdown formatted file")
         return
 
     try:
-        with open(file.filename, 'r', encoding='utf-8') as md_file:
+        with open(file_path, 'r', encoding='utf-8') as md_file:
             markdown_content = md_file.read()
 
-        local_images, image_urls = await metadata_updater.extract_image_paths(markdown_content, session)
+        local_images, image_urls = await metadata_updater.extract_image_paths(markdown_content, file_path, session)
 
-        base_dir = os.path.dirname(file.filename)
+        base_dir = os.path.dirname(file_path)
         repo_root = os.getcwd()
-        encoded_images = metadata_updater.encode_images(local_images, base_dir, repo_root)
+        encoded_images = metadata_updater.encode_images(local_images, base_dir, file_path, repo_root)
 
-        is_ipynb = file.filename.lower().endswith('.ipynb')
+        is_ipynb = file_path.lower().endswith('.ipynb')
 
         local_complete_check = all(alt and title for alt, _, title in local_images)
         url_complete_check = all(alt and title for alt, _, title in image_urls)
 
         if local_complete_check and url_complete_check:
-            logging.info(f"No update needed for {file.filename}")
+            logging.info(f"[{file_path}] No update needed")
             return
 
-        response = await metadata_updater.get_image_metadata(session, markdown_content, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
+        response = await metadata_updater.get_image_metadata(session, markdown_content, file_path, encoded_images, image_urls, alttexter_endpoint, rate_limiter)
 
         if not response["success"]:
-            logging.error("Failed to get a response from ALTTEXTER_ENDPOINT.")
-            github_handler.post_comment(f"Failed to get a response from the ALTTEXTER_ENDPOINT for file `{file.filename}`. Please check the logs for more details.")
+            logging.error(f"[{file_path}] Failed to get a response from ALTTEXTER_ENDPOINT")
+            github_handler.post_comment(f"Failed to get a response from the ALTTEXTER_ENDPOINT for file `{file_path}`. Please check the logs for more details.")
             return
 
         image_metadata = response["data"].get('images', [])
         updated_content, images_not_updated = metadata_updater.update_image_metadata(
-            markdown_content, image_metadata, base_dir, repo_root, is_ipynb
+            markdown_content, file_path, image_metadata, base_dir, repo_root, is_ipynb
         )
 
         if updated_content != markdown_content:
-            logging.info(f"Writing updated metadata to {file.filename}")
-            with open(file.filename, 'w', encoding='utf-8') as md_file:
+            logging.info(f"[{file_path}] Writing updated metadata to file")
+            with open(file_path, 'w', encoding='utf-8') as md_file:
                 md_file.write(updated_content)
 
-            commit_message = f"Update image alt and title attributes in {file.filename}"
-            if commit_push_successful := github_handler.commit_and_push([file.filename], commit_message):
+            commit_message = f"Update image alt and title attributes in {file_path}"
+            if commit_push_successful := github_handler.commit_and_push([file_path], commit_message):
                 review_message = "Please check the LLM generated alt-text and title attributes in this file as they may contain inaccuracies."
                 if run_url := response["data"].get('run_url'):
                     review_message += f" [Explore how the LLM generated them.]({run_url})"
-                github_handler.post_generic_review_comment(file.filename, review_message)
+                github_handler.post_generic_review_comment(file_path, review_message)
             else:
-                logging.error(f"Failed to commit and push changes for {file.filename}")
+                logging.error(f"[{file_path}] Failed to commit and push changes")
         elif images_not_updated:
-            logging.info(f"Some images in {file.filename} were not updated: {images_not_updated}")
+            logging.info(f"[{file_path}] Some images were not updated: {images_not_updated}")
         else:
-            logging.info(f"Metadata for {file.filename} is already up to date.")
+            logging.info(f"[{file_path}] Metadata is already up to date")
 
     except Exception as e:
-        logging.error(f"Error processing file {file.filename}: {e}")
-        github_handler.post_comment(f"Error processing file `{file.filename}`. Please check the logs for more details.")
+        logging.error(f"[{file_path}] Error processing file: {e}")
+        github_handler.post_comment(f"Error processing file `{file_path}`")
 
 
 async def main():
