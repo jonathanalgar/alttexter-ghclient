@@ -2,6 +2,8 @@
 
 [![Screenshot of alttexter-ghclient having made commit and raised review comment](example.png "alttexter-ghclient commit and review")](https://github.com/jonathanalgar/langchain/pull/3/files#diff-13f93b90ba1f5e943cfbd17a52a1ab71a43c3dd7797e96f959cc17dccaaac198)
 
+> :bulb: *Full demo:* https://github.com/jonathanalgar/docs-demo/pull/1
+
 ![ci](https://github.com/jonathanalgar/alttexter-ghclient/actions/workflows/build-docker.yml/badge.svg)
 
 ![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com)
