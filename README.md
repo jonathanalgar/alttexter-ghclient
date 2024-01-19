@@ -16,8 +16,8 @@ The action searches for missing alt text and title attributes in markdown-format
 
 ### In the wild
 
+* https://github.com/OutSystems/docs-odc/commit/acf34564cd19130b6b0b7979af70b07275e4c797
 * https://github.com/langchain-ai/langchain/pull/15357
-* https://github.com/openai/openai-cookbook/pull/967
 
 ## Usage
 
