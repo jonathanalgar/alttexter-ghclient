@@ -10,6 +10,8 @@
 
 ## Overview
 
+[![Diagram of the system architecture of the alttexter microservice, showing its integration with GitHub client](alttexter-diag.png "Altexter Architecture Diagram")](https://jonathanalgar.github.io/slides/Using%20AI%20and%20LLMs%20in%20docs-as-code%20pipelines.pdf)
+
 Containerized GitHub action for interacting with the [alttexter](https://github.com/jonathanalgar/alttexter) service.
 
 The action searches for missing alt text and title attributes in markdown-formatted files on commit to a pull request. On match, it bundles the text and images off in a request to the [alttexter](https://github.com/jonathanalgar/alttexter) service for generation. Responses from the service are committed and a comment on the file posted.
