@@ -311,7 +311,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
 
         image_metadata = response["data"].get('images', [])
         updated_content, images_not_updated = metadata_updater.update_image_metadata(
-            markdown_content, file_path, image_metadata, base_dir, repo_root, is_ipynb
+            markdown_content, image_metadata, base_dir, repo_root, is_ipynb
         )
 
         if updated_content != markdown_content:
