@@ -24,7 +24,19 @@ class GitHubHandler:
             repo_name (str): Repository name.
             pr_number (int): Pull request number.
         """
-        self.github_obj = Github(os.getenv('GITHUB_TOKEN'))
+        token_var_name = os.getenv('ALTTEXTER_GITHUB_TOKEN_OVERRIDE')
+        if token_var_name:
+            github_token = os.getenv(token_var_name)
+            if github_token:
+                logging.info(f"Using custom token provided by the environment variable: {token_var_name}")
+            else:
+                logging.error(f"The environment variable {token_var_name} does not exist or is not set. Falling back to GITHUB_TOKEN.")
+                github_token = os.getenv('GITHUB_TOKEN')
+        else:
+            logging.debug("No custom token override provided; using GITHUB_TOKEN.")
+            github_token = os.getenv('GITHUB_TOKEN')
+
+        self.github_obj = Github(github_token)
         self.repo = self.github_obj.get_repo(repo_name)
         self.pr = self.repo.get_pull(pr_number)
 
@@ -72,12 +84,25 @@ class GitHubHandler:
         file_paths_str = "[" + ", ".join(updated_files) + "]"
         logging.info(f"{file_paths_str} Initiating commit and push process")
 
+        git_username = os.getenv('ALTTEXTER_GITHUB_USERNAME') or 'github-actions'
+        git_email = os.getenv('ALTTEXTER_GITHUB_EMAIL') or 'github-actions@github.com'
+
+        if os.getenv('ALTTEXTER_GITHUB_USERNAME'):
+            logging.info(f"Using custom Git username: {git_username}")
+        else:
+            logging.info("Using default Git username: 'github-actions'")
+
+        if os.getenv('ALTTEXTER_GITHUB_EMAIL'):
+            logging.info(f"Using custom Git email: {git_email}")
+        else:
+            logging.info("Using default Git email: 'github-actions@github.com'")
+
         try:
             # Configure Git to allow operations in the current directory
             current_directory = os.getcwd()
             subprocess.run(['git', 'config', '--global', '--add', 'safe.directory', current_directory], check=True)
-            subprocess.run(['git', 'config', 'user.name', 'github-actions'], check=True)
-            subprocess.run(['git', 'config', 'user.email', 'github-actions@github.com'], check=True)
+            subprocess.run(['git', 'config', '--global', 'user.name', git_username], check=True)
+            subprocess.run(['git', 'config', '--global', 'user.email', git_email], check=True)
 
             if subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True).stdout:
                 subprocess.run(['git', 'add'] + updated_files, check=True)

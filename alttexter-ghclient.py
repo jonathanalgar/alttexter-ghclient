@@ -216,7 +216,7 @@ class ImageMetadataUpdater:
 
         return response_structure
 
-    def update_image_metadata(self, markdown_content, file_path, image_metadata, base_dir, repo_root, is_ipynb):
+    def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb):
         """
         Updates markdown content with new alt-text and title attributes.
 
@@ -234,7 +234,7 @@ class ImageMetadataUpdater:
 
         def replacement(match):
             groups = match.groups()
-            image_alt, image_path = groups[:2]
+            _, image_path = groups[:2]
             title_double, title_single = groups[2:4] if len(groups) == 4 else ("", "")
             image_title = title_double or title_single or ""
 
@@ -311,7 +311,7 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
 
         image_metadata = response["data"].get('images', [])
         updated_content, images_not_updated = metadata_updater.update_image_metadata(
-            markdown_content, file_path, image_metadata, base_dir, repo_root, is_ipynb
+            markdown_content, image_metadata, base_dir, repo_root, is_ipynb
         )
 
         if updated_content != markdown_content:

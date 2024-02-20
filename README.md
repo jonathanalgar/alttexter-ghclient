@@ -73,11 +73,13 @@ jobs:
         run: python /app/alttexter-ghclient.py
 ```
 
-You'll need to set the following repo secrets:
+You'll need to [add the following repo secrets](https://docs.github.com/en/codespaces/managing-codespaces-for-your-organization/managing-development-environment-secrets-for-your-repository-or-organization#adding-secrets-for-a-repository):
 
 * `ALTTEXTER_ENDPOINT`: Endpoint URL of the running `alttexter` (eg. `https://alttexter-prod.westeurope.cloudapp.azure.com:9100/alttexter`)
 * `ALTTEXTER_TOKEN`: Single token for service.
 * `ALTTEXTER_RATEMINUTE`: Maximum number of calls to `alttexter` service per minute. Consider [OpenAI rate limits](https://platform.openai.com/docs/guides/rate-limits) for your tier. I'd reccomend no more than 3.
+
+Optionally you can [add repo environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#creating-configuration-variables-for-a-repository) `ALTTEXTER_GITHUB_TOKEN_OVERRIDE` (text of a repo secret name, for example `CR_TOKEN`—if using pass the secret in `alttexter.yml`), `ALTTEXTER_GITHUB_USERNAME` & `ALTTEXTER_GITHUB_EMAIL` to override the default GitHub token, username and email used for commits.
 
 Once that's done you can open a PR with files that need alt text and/or title attributes.
 
