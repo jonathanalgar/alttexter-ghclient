@@ -348,7 +348,9 @@ async def main():
     pr_number = int(os.getenv('PR_NUMBER'))
     alttexter_endpoint = os.getenv('ALTTEXTER_ENDPOINT')
 
-    github_handler = GitHubHandler(repo_name, pr_number)
+    silent_mode = os.getenv('ALTTEXTER_SILENTMODE', '0').lower() in ['true', '1']
+
+    github_handler = GitHubHandler(repo_name, pr_number, silent_mode)
     metadata_updater = ImageMetadataUpdater()
 
     async with aiohttp.ClientSession() as session:

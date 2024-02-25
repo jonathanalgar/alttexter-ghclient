@@ -16,7 +16,7 @@ class GitHubHandler:
         repo (Repository): GitHub repository associated with the pull request.
         pr (PullRequest): Pull request object for commenting or reviewing.
     """
-    def __init__(self, repo_name, pr_number):
+    def __init__(self, repo_name, pr_number, silent_mode=False):
         """
         Initializes GitHubHandler with repository and pull request details.
 
@@ -40,6 +40,10 @@ class GitHubHandler:
         self.repo = self.github_obj.get_repo(repo_name)
         self.pr = self.repo.get_pull(pr_number)
 
+        self.silent_mode = silent_mode
+        if self.silent_mode:
+            logging.info("Running in silent mode. Comments to the PR will be minimized.")
+
     def post_comment(self, message):
         """
         Posts a comment to the pull request.
@@ -47,6 +51,10 @@ class GitHubHandler:
         Args:
             message (str): Comment content.
         """
+        if self.silent_mode:
+            logging.info(f"Silent mode enabled. Intended comment: {message}")
+            return
+
         self.pr.create_issue_comment(message)
 
     def post_generic_review_comment(self, file_path, review_message):
