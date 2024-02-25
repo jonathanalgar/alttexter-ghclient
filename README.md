@@ -4,7 +4,7 @@
 
 > :bulb: *Full demo:* https://github.com/jonathanalgar/docs-demo/pull/1
 
-![ci](https://github.com/jonathanalgar/alttexter-ghclient/actions/workflows/build-docker.yml/badge.svg) [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=jonathanalgar_alttexter-ghclient&metric=bugs)](https://sonarcloud.io/summary/new_code?id=jonathanalgar_alttexter-ghclient) [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=jonathanalgar_alttexter-ghclient&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=jonathanalgar_alttexter-ghclient) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com) ![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com)
+![ci](https://github.com/jonathanalgar/alttexter-ghclient/actions/workflows/build-docker.yml/badge.svg) [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=jonathanalgar_alttexter-ghclient&metric=bugs)](https://sonarcloud.io/summary/new_code?id=jonathanalgar_alttexter-ghclient) [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=jonathanalgar_alttexter-ghclient&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=jonathanalgar_alttexter-ghclient) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://makeapullrequest.com) ![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue)
 
 ## Overview
 
