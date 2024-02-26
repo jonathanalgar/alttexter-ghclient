@@ -13,8 +13,14 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(levelname)s [%(asctime)s] %(message)s',
                     datefmt='%d-%m-%Y %H:%M:%S')
 
+
 SUPPORTED_FILE_EXTENSIONS = ('.md', '.mdx', '.ipynb')
+
 SUPPORTED_IMAGE_EXTENSIONS = ('.png', '.gif', '.jpg', '.jpeg', '.webp')
+include_svg = os.getenv('ALTTEXTER_INCLUDE_SVG', '0').lower() in ['true', '1']
+if include_svg:
+    logging.info("SVG files are included as supported image extensions.")
+    SUPPORTED_IMAGE_EXTENSIONS += ('.svg',)
 
 
 class ImageMetadataUpdater:
@@ -49,7 +55,8 @@ class ImageMetadataUpdater:
             '.jpeg': 'image/jpeg',
             '.png': 'image/png',
             '.gif': 'image/gif',
-            '.webp': 'image/webp'
+            '.webp': 'image/webp',
+            '.svg': 'image/svg+xml'
         }
         supported_mime_types = [extension_to_mime[ext] for ext in SUPPORTED_IMAGE_EXTENSIONS if ext in extension_to_mime]
 
@@ -282,6 +289,19 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
         rate_limiter (RateLimiter): API request rate limiter.
     """
     file_path = file.filename
+    alttexter_filter = os.getenv('ALTTEXTER_FILTER', '')
+
+    # Skip processing if the file does not match the filter criteria
+    if alttexter_filter:
+        with open(file_path, 'r', encoding='utf-8') as md_file:
+            file_content = md_file.read()
+            filter_key, filter_value = alttexter_filter.split(':')
+            pattern = re.compile(rf'{filter_key.strip()}\s*:\s*{filter_value.strip()}')
+            if not pattern.search(file_content):
+                logging.info(f"[{file_path}] Does not match the filter criteria '{alttexter_filter}'. Skipping.")
+                return
+            else:
+                logging.info(f"[{file_path}] Matches the filter criteria '{alttexter_filter}'. Proceeding with processing.")
 
     logging.info(f"[{file_path}] Starting to process file")
 
