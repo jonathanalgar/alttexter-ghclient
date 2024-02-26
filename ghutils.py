@@ -18,14 +18,14 @@ class GitHubHandler:
     """
     def __init__(self, repo_name, pr_number, silent_mode=False):
         """
-        Initializes GitHubHandler with repository and pull request details.
+        Initializes the GitHubHandler with repository details and the pull request number.
 
         Args:
-            repo_name (str): Repository name.
-            pr_number (int): Pull request number.
+            repo_name (str): The name of the repository in the format 'owner/repo'.
+            pr_number (int): The number of the pull request within the repository.
+            silent_mode (bool, optional): If True, operates in silent mode where comments are not posted. Defaults to False.
         """
-        token_var_name = os.getenv('ALTTEXTER_GITHUB_TOKEN_OVERRIDE')
-        if token_var_name:
+        if token_var_name := os.getenv('ALTTEXTER_GITHUB_TOKEN_OVERRIDE'):
             github_token = os.getenv(token_var_name)
             if github_token:
                 logging.info(f"Using custom token provided by the environment variable: {token_var_name}")
@@ -153,21 +153,21 @@ class GitHubHandler:
 
 class RateLimiter:
     """
-    Token bucket algorithm-based rate limiter for API requests.
+    Implements a rate limiting mechanism using the token bucket algorithm to control the rate of requests.
 
     Attributes:
-        rate (int): Maximum requests per time frame.
-        per (float): Time frame for rate limit in seconds.
-        allowance (float): Current available tokens.
-        last_check (float): Last timestamp of rate limit check.
+        rate (int): The number of tokens (requests) allowed per time frame.
+        per (float): The time frame for rate limiting in seconds.
+        allowance (float): The current number of available tokens.
+        last_check (float): The last time (in seconds) when the allowance was checked and updated.
     """
     def __init__(self, rate, per):
         """
-        Initializes RateLimiter with a specific rate and time period.
+        Initializes the rate limiter with a specific rate and time period.
 
         Args:
-            rate (int): Allowed calls per time period.
-            per (float): Time period in seconds.
+            rate (int): The maximum number of requests allowed per time period.
+            per (float): The time period in seconds over which `rate` is measured.
         """
         self.rate = rate
         self.per = per
@@ -176,7 +176,10 @@ class RateLimiter:
 
     async def wait_for_token(self, file_path):
         """
-        Waits for token availability based on the rate limit before proceeding with a request.
+        Asynchronously waits until a token is available according to the rate limit before proceeding.
+
+        Args:
+            file_path (str): The path of the file being processed, used for logging purposes.
         """
         while self.allowance < 1:
             logging.info(f"[{file_path}] Rate limit reached. Waiting for token availability...")

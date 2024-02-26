@@ -29,14 +29,15 @@ class ImageMetadataUpdater:
 
     async def check_url_content_type(self, url, file_path, session):
         """
-        Makes a GET request to a URL to check its content type but limits the download size.
+        Asynchronously checks the content type of the specified URL to determine if it points to a supported image type.
 
         Args:
-            url (str): The URL to check.
-            session (aiohttp.ClientSession): The session for making HTTP requests.
+            url (str): The URL of the image to check.
+            file_path (str): Path of the file containing the URL, used for logging purposes.
+            session (aiohttp.ClientSession): The session object used for making HTTP requests.
 
         Returns:
-            bool: True if the content type is a supported image, False otherwise.
+            bool: True if the content type of the URL is a supported image type; False otherwise.
         """
         headers = {'User-Agent': 'Mozilla/5.0'}
 
@@ -66,13 +67,16 @@ class ImageMetadataUpdater:
 
     async def extract_image_paths(self, markdown_content, file_path, session):
         """
-        Extracts image paths and details from markdown content.
+        Extracts and categorizes image paths from markdown content into local images and image URLs.
 
         Args:
-            markdown_content (str): The markdown content.
+            markdown_content (str): The markdown content to be scanned for images.
+            file_path (str): The path of the markdown file being processed, used for logging.
+            session (aiohttp.ClientSession): The session object used for making HTTP requests to check URL content types.
 
         Returns:
-            tuple: Lists of local images and image URLs with metadata.
+            tuple: A tuple containing two lists - the first list contains tuples of local image paths and their metadata,
+                   and the second list contains tuples of image URLs and their metadata.
         """
 
         images = self.IMAGE_PATTERN.findall(markdown_content)
@@ -120,15 +124,16 @@ class ImageMetadataUpdater:
 
     def encode_images(self, images, base_dir, file_path, repo_root):
         """
-        Encodes local images in base64 format.
+        Encodes local images specified in the images list to base64 strings.
 
         Args:
-            images (list): Local image paths.
-            base_dir (str): Base directory of markdown file.
-            repo_root (str): Root directory of the repository.
+            images (list): A list of tuples representing local images to be encoded. Each tuple contains the image's alt text, path, and optional title.
+            base_dir (str): The base directory of the markdown file being processed.
+            file_path (str): The path of the markdown file, used for logging.
+            repo_root (str): The root directory of the repository containing the markdown file.
 
         Returns:
-            dict: Mapping of image paths to base64 encoded strings.
+            dict: A dictionary mapping the image paths to their base64 encoded strings.
         """
         encoded_images = {}
 
@@ -159,31 +164,32 @@ class ImageMetadataUpdater:
 
     def encode_image(self, image_path):
         """
-        Encodes a single image to a base64 string.
+        Encodes a single image file located at the specified path to a base64 string.
 
         Args:
-            image_path (str): Path of the image to encode.
+            image_path (str): The filesystem path to the image file.
 
         Returns:
-            str: Base64 encoded string of the image.
+            str: The base64 encoded string representation of the image file.
         """
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
 
     async def get_image_metadata(self, session, markdown_content, file_path, encoded_images, image_urls, alttexter_endpoint, rate_limiter):
         """
-        Asynchronously retrieves image metadata from ALTTEXTER_ENDPOINT.
+        Asynchronously retrieves image metadata for both local and remote images specified in the markdown content.
 
         Args:
-            session (aiohttp.ClientSession): HTTP session for requests.
-            markdown_content (str): Markdown content with images.
-            encoded_images (dict): Base64 encoded local images.
-            image_urls (list): Image URLs.
-            alttexter_endpoint (str): Metadata service URL.
-            rate_limiter (RateLimiter): Rate limiter for requests.
+            session (aiohttp.ClientSession): HTTP session for making requests.
+            markdown_content (str): Markdown content from which to extract image metadata.
+            file_path (str): Path of the markdown file, used for logging.
+            encoded_images (dict): Local images encoded in base64 format.
+            image_urls (list): URLs of remote images.
+            alttexter_endpoint (str): Endpoint URL for the ALTTEXTER service.
+            rate_limiter (RateLimiter): Rate limiter for controlling request frequency.
 
         Returns:
-            tuple: Indicates success and response data or error info.
+            dict: A dictionary with a success flag and either the retrieved image metadata or an error message.
         """
         ALTTEXTER_TIMEOUT = 240
 
@@ -218,17 +224,17 @@ class ImageMetadataUpdater:
 
     def update_image_metadata(self, markdown_content, image_metadata, base_dir, repo_root, is_ipynb):
         """
-        Updates markdown content with new alt-text and title attributes.
+        Updates the markdown content with new alt text and title attributes for images based on the provided metadata.
 
         Args:
-            markdown_content (str): Original markdown content.
-            image_metadata (dict): Image metadata including alt-text and titles.
-            base_dir (str): Base directory of markdown file.
-            repo_root (str): Repository root directory.
-            is_ipynb (bool): Flag for Jupyter Notebook files.
+            markdown_content (str): The original markdown content.
+            image_metadata (list): A list of metadata for each image.
+            base_dir (str): The base directory of the markdown file.
+            repo_root (str): The root directory of the repository.
+            is_ipynb (bool): Flag indicating if the file is a Jupyter Notebook.
 
         Returns:
-            tuple: Updated markdown content and list of images not updated.
+            tuple: The updated markdown content and a list of images that were not updated due to missing metadata.
         """
         images_not_updated = []
 
