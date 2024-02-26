@@ -298,10 +298,10 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
             filter_key, filter_value = alttexter_filter.split(':')
             pattern = re.compile(rf'{filter_key.strip()}\s*:\s*{filter_value.strip()}')
             if not pattern.search(file_content):
-                logging.info(f"[{file_path}] does not match the filter criteria '{alttexter_filter}'. Skipping.")
+                logging.info(f"[{file_path}] Does not match the filter criteria '{alttexter_filter}'. Skipping.")
                 return
             else:
-                logging.info(f"[{file_path}] matches the filter criteria '{alttexter_filter}'. Proceeding with processing.")
+                logging.info(f"[{file_path}] Matches the filter criteria '{alttexter_filter}'. Proceeding with processing.")
 
     logging.info(f"[{file_path}] Starting to process file")
 

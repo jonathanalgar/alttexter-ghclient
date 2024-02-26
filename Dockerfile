@@ -1,12 +1,12 @@
 FROM python:3.11-slim AS base
-
-RUN apt-get update && apt-get install -y git && apt clean
-
-COPY requirements.txt /
-RUN pip install --no-cache-dir -r requirements.txt
-
-RUN mkdir /app
 WORKDIR /app
-ADD . /app
+COPY requirements.txt .
 
-CMD python alttexter-ghclient.py
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+CMD ["python", "alttexter-ghclient.py"]
