@@ -66,7 +66,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           ALTTEXTER_ENDPOINT: ${{ secrets.ALTTEXTER_ENDPOINT }}
           ALTTEXTER_TOKEN: ${{ secrets.ALTTEXTER_TOKEN }}
-          ALTTEXTER_RATEMINUTE: ${{ secrets.ALTTEXTER_RATEMINUTE }}
+          ALTTEXTER_RATEMINUTE: ${{ vars.ALTTEXTER_RATEMINUTE }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python /app/alttexter-ghclient.py
 ```
@@ -75,9 +75,12 @@ You'll need to [add the following repo secrets](https://docs.github.com/en/codes
 
 * `ALTTEXTER_ENDPOINT`: Endpoint URL of the running `alttexter` (eg. `https://alttexter-prod.westeurope.cloudapp.azure.com:9100/alttexter`)
 * `ALTTEXTER_TOKEN`: Single token for service.
+
+And [add one repo environment variable](https://docs.github.com/en/actions/learn-github-actions/variables#creating-configuration-variables-for-a-repository):
+
 * `ALTTEXTER_RATEMINUTE`: Maximum number of calls to `alttexter` service per minute. Consider [OpenAI rate limits](https://platform.openai.com/docs/guides/rate-limits) for your tier. I'd reccomend no more than 3.
 
-Optionally you can [add repo environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#creating-configuration-variables-for-a-repository) `ALTTEXTER_GITHUB_TOKEN_OVERRIDE` (text of a repo secret name, for example `CR_TOKEN`—if using pass the secret in `alttexter.yml`), `ALTTEXTER_GITHUB_USERNAME` & `ALTTEXTER_GITHUB_EMAIL` to override the default GitHub token, username and email used for commits.
+Optionally you can add repo environment variables `ALTTEXTER_GITHUB_TOKEN_OVERRIDE` (text of a repo secret name, for example `CR_TOKEN`—if using pass the secret in `alttexter.yml`), `ALTTEXTER_GITHUB_USERNAME` & `ALTTEXTER_GITHUB_EMAIL` to override the default GitHub token, username and email used for commits.
 
 Once that's done you can open a PR with files that need alt text and/or title attributes.
 
