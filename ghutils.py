@@ -201,5 +201,7 @@ class RateLimiter:
             self.allowance += time_passed * (self.rate / self.per)
             self.allowance = min(self.allowance, self.rate)
 
+        logging.info(f"[{file_path}] Token available. Proceeding with request.")
+
         self.allowance -= 1
         self.waiting_files.remove(file_path)
