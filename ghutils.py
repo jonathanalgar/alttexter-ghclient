@@ -65,6 +65,10 @@ class GitHubHandler:
             file_path (str): Relative file path in the repository.
             review_message (str): Review comment content.
         """
+        if self.silent_mode:
+            logging.info(f"Silent mode enabled. Intended review message: {review_message}")
+            return
+
         try:
             pr = self.repo.get_pull(self.pr.number)
             commit_obj = self.repo.get_commit(pr.head.sha)
