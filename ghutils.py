@@ -177,6 +177,7 @@ class RateLimiter:
         self.per = per
         self.allowance = rate
         self.last_check = time.monotonic()
+        self.waiting_files = []
 
     async def wait_for_token(self, file_path):
         """
@@ -185,13 +186,20 @@ class RateLimiter:
         Args:
             file_path (str): The path of the file being processed, used for logging purposes.
         """
+        first_wait = file_path not in self.waiting_files
+        self.waiting_files.append(file_path)
+        queue_position = self.waiting_files.index(file_path) + 1
+
+        if first_wait:
+            logging.info(f"[{file_path}] Rate limit reached. Waiting for token availability... (Position in queue: {queue_position})")
+
         while self.allowance < 1:
-            logging.info(f"[{file_path}] Rate limit reached. Waiting for token availability...")
             await asyncio.sleep(5)
             current_time = time.monotonic()
             time_passed = current_time - self.last_check
             self.last_check = current_time
             self.allowance += time_passed * (self.rate / self.per)
             self.allowance = min(self.allowance, self.rate)
-        logging.info(f"[{file_path}] Token available. Proceeding with request.")
+
         self.allowance -= 1
+        self.waiting_files.remove(file_path)
