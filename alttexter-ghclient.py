@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import glob
+import json
 import logging
 import os
 import re
@@ -295,13 +296,26 @@ async def process_file(session, file, alttexter_endpoint, github_handler, metada
     if alttexter_filter:
         with open(file_path, 'r', encoding='utf-8') as md_file:
             file_content = md_file.read()
-            filter_key, filter_value = alttexter_filter.split(':')
-            pattern = re.compile(rf'{filter_key.strip()}\s*:\s*{filter_value.strip()}')
-            if not pattern.search(file_content):
-                logging.info(f"[{file_path}] Does not match the filter criteria '{alttexter_filter}'. Skipping.")
+
+            try:
+                filters = json.loads(alttexter_filter)
+                if not isinstance(filters, list):  # If it's not a list, revert to treating it as a single string filter
+                    filters = [alttexter_filter]
+            except json.JSONDecodeError:
+                filters = [alttexter_filter]
+
+            all_filters_matched = True
+            for filter_str in filters:
+                pattern = re.compile(rf'{filter_str.strip()}')
+                if not pattern.search(file_content):
+                    all_filters_matched = False
+                    break
+
+            if not all_filters_matched:
+                logging.info(f"[{file_path}] Does not match all filter criteria. Skipping.")
                 return
             else:
-                logging.info(f"[{file_path}] Matches the filter criteria '{alttexter_filter}'. Proceeding with processing.")
+                logging.info(f"[{file_path}] Matches all filter criteria. Proceeding with processing.")
 
     logging.info(f"[{file_path}] Starting to process file")
 
