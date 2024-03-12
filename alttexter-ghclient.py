@@ -400,7 +400,7 @@ async def main():
         tasks = [
             asyncio.create_task(process_file(session, file, alttexter_endpoint, github_handler, metadata_updater, rate_limiter))
             for file in files
-            if file.filename.lower().endswith(SUPPORTED_FILE_EXTENSIONS) and github_handler.get_file_status(file.filename) in ['added', 'modified']
+            if file.filename.lower().endswith(SUPPORTED_FILE_EXTENSIONS) and file.status in ['added', 'modified']
         ]
 
         logging.debug(f"Processing tasks: {tasks}")

@@ -138,22 +138,7 @@ class GitHubHandler:
         except subprocess.CalledProcessError as e:
             logging.error(f"{file_paths_str} Error during git operations: {e}")
             return False
-
-    def get_file_status(self, file_path):
-        """
-        Retrieves the status of a file in the context of the pull request.
-
-        The method checks the list of files in the pull request and returns the status
-        of the specified file. The status can indicate whether the file is added, modified, or deleted.
-
-        Args:
-            file_path (str): The relative path of the file in the repository for which the status is required.
-        """
-        pr_files = self.pr.get_files()
-        return next(
-            (file.status for file in pr_files if file.filename == file_path), None
-        )
-
+        
 
 class RateLimiter:
     """
