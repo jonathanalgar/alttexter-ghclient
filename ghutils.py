@@ -163,8 +163,7 @@ class RateLimiter:
         self.per = per
         self.tokens = rate
         self.last_check = time.monotonic()
-        self.lock = asyncio.Lock()  # Initialize the lock
-
+        self.lock = asyncio.Lock()
 
     async def wait_for_token(self, file_path, batch_index, total_batches):
         """
@@ -181,18 +180,15 @@ class RateLimiter:
                 time_passed = current_time - self.last_check
                 new_tokens = time_passed * self.rate / self.per
                 self.tokens = min(self.tokens + new_tokens, self.rate)
-                
+                self.last_check = current_time
+
                 if self.tokens >= 1:
                     self.tokens -= 1
-                    self.last_check = current_time
-                    logging.debug(f"[{file_path}] [Batch {batch_index}/{total_batches}] Token available. Proceeding...")
+                    logging.debug(f"[{file_path}] [Batch {batch_index}/{total_batches}] Token available. Proceeding with request.")
                     return
 
             delay = (1 - self.tokens) * self.per / self.rate
-            logging.info(f"[{file_path}] [Batch {batch_index}/{total_batches}] Rate limit exceeded. Waiting for the next available token...")
-            logging.debug(f"[{file_path}] [Batch {batch_index}/{total_batches}] Expected wait time: {delay:.2f} seconds")
             await asyncio.sleep(delay)
-
 
     async def acquire(self, file_path, batch_index, total_batches):
         """
