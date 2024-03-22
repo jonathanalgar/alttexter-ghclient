@@ -142,51 +142,61 @@ class GitHubHandler:
 
 class RateLimiter:
     """
-    Implements a rate limiting mechanism using the token bucket algorithm to control the rate of requests.
+    Implements a rate limiting mechanism using the token bucket algorithm to control the rate of batches.
 
     Attributes:
-        rate (int): The number of tokens (requests) allowed per time frame.
+        rate (int): The number of tokens (batches) allowed per time frame.
         per (float): The time frame for rate limiting in seconds.
-        allowance (float): The current number of available tokens.
-        last_check (float): The last time (in seconds) when the allowance was checked and updated.
+        tokens (int): The current number of available tokens.
+        last_check (float): The last time (in seconds) when the tokens were checked and updated.
+        lock (asyncio.Lock): A lock to ensure thread-safe access to the token count.
     """
     def __init__(self, rate, per):
         """
         Initializes the rate limiter with a specific rate and time period.
 
         Args:
-            rate (int): The maximum number of requests allowed per time period.
+            rate (int): The maximum number of batches allowed per time period.
             per (float): The time period in seconds over which `rate` is measured.
         """
         self.rate = rate
         self.per = per
-        self.allowance = rate
+        self.tokens = rate
         self.last_check = time.monotonic()
-        self.waiting_files = []
+        self.lock = asyncio.Lock()
 
-    async def wait_for_token(self, file_path):
+    async def wait_for_token(self, file_path, batch_index, total_batches):
         """
         Asynchronously waits until a token is available according to the rate limit before proceeding.
 
         Args:
-            file_path (str): The path of the file being processed, used for logging purposes.
+            file_path (str): The path of the file being processed.
+            batch_index (int): The index of the batch being processed.
+            total_batches (int): The total number of batches for the file.
         """
-        first_wait = file_path not in self.waiting_files
-        self.waiting_files.append(file_path)
-        queue_position = self.waiting_files.index(file_path) + 1
+        while True:
+            async with self.lock:
+                current_time = time.monotonic()
+                time_passed = current_time - self.last_check
+                new_tokens = time_passed * self.rate / self.per
+                self.tokens = min(self.tokens + new_tokens, self.rate)
+                self.last_check = current_time
 
-        if first_wait:
-            logging.info(f"[{file_path}] Rate limit reached. Waiting for token availability... (Position in queue: {queue_position})")
+                if self.tokens >= 1:
+                    self.tokens -= 1
+                    logging.info(f"[{file_path}] [Batch {batch_index}/{total_batches}] Token available. Proceeding with request.")
+                    return
 
-        while self.allowance < 1:
-            await asyncio.sleep(5)
-            current_time = time.monotonic()
-            time_passed = current_time - self.last_check
-            self.last_check = current_time
-            self.allowance += time_passed * (self.rate / self.per)
-            self.allowance = min(self.allowance, self.rate)
+            delay = (1 - self.tokens) * self.per / self.rate
+            await asyncio.sleep(delay)
 
-        logging.info(f"[{file_path}] Token available. Proceeding with request.")
+    async def acquire(self, file_path, batch_index, total_batches):
+        """
+        Acquires a token from the rate limiter, waiting if necessary.
 
-        self.allowance -= 1
-        self.waiting_files.remove(file_path)
+        Args:
+            file_path (str): The path of the file being processed.
+            batch_index (int): The index of the batch being processed.
+            total_batches (int): The total number of batches for the file.
+        """
+        await self.wait_for_token(file_path, batch_index, total_batches)
