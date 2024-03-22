@@ -227,8 +227,6 @@ class ImageMetadataUpdater:
         }
 
         for batch_index, batch in enumerate(batches, start=1):
-            logging.info(f"[{file_path}] Processing batch {batch_index} of {len(batches)}")
-
             # Separate the current batch back into encoded images and URLs
             batch_encoded_images = {item['path']: item['data'] for item in batch if item['type'] == 'encoded'}
             batch_image_urls = [item['url'] for item in batch if item['type'] == 'url']

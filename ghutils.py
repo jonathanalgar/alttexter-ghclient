@@ -184,7 +184,7 @@ class RateLimiter:
 
                 if self.tokens >= 1:
                     self.tokens -= 1
-                    logging.debug(f"[{file_path}] [Batch {batch_index}/{total_batches}] Token available. Proceeding with request.")
+                    logging.info(f"[{file_path}] [Batch {batch_index}/{total_batches}] Token available. Proceeding with request.")
                     return
 
             delay = (1 - self.tokens) * self.per / self.rate
