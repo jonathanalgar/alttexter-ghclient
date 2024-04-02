@@ -200,33 +200,60 @@ class ImageMetadataUpdater:
             dict: A dictionary with a success flag and either the retrieved image metadata or an error message.
         """
         ALTTEXTER_TIMEOUT = 240
+        response_structure = {"success": False, "data": {}}
+        all_image_metadata = []
 
-        response_structure = {"success": False, "data": None}
+        try:
+            batch_size = int(os.getenv('ALTTEXTER_BATCH_SIZE', '0'))
+            if batch_size < 1:
+                batch_size = None
+        except ValueError:
+            batch_size = None
 
-        image_urls_only = [url for _, url, _ in image_urls]
+        # Combine encoded images and image URLs, marking each with its type
+        combined_images = [{'type': 'encoded', 'data': data, 'path': path} for path, data in encoded_images.items()] + \
+                        [{'type': 'url', 'url': url, 'alt': alt, 'title': title} for alt, url, title in image_urls]
 
-        await rate_limiter.wait_for_token(file_path)
-        logging.info(f"[{file_path}] Sending request to ALTTEXTER_ENDPOINT")
+        if batch_size:
+            logging.info(f"[{file_path}] Processing images in batches of size {batch_size}")
+            batches = [combined_images[i:i + batch_size] for i in range(0, len(combined_images), batch_size)]
+        else:
+            logging.info(f"[{file_path}] Processing all images in a single batch")
+            batches = [combined_images]  # No batching, process all in one go
+
         headers = {
             "Content-Type": "application/json",
             "X-API-Token": os.getenv('ALTTEXTER_TOKEN')
         }
-        payload = {
-            "text": markdown_content,
-            "images": encoded_images,
-            "image_urls": image_urls_only
-        }
-        try:
-            async with session.post(alttexter_endpoint, json=payload, headers=headers, timeout=ALTTEXTER_TIMEOUT) as response:
-                response.raise_for_status()
-                response_structure["data"] = await response.json()
-                response_structure["success"] = True
-        except asyncio.TimeoutError:
-            logging.error(f"[{file_path}] Request to ALTTEXTER_ENDPOINT timed out")
-        except aiohttp.ClientResponseError as e:
-            logging.error(f"[{file_path}] HTTP Response Error: {e}")
-        except Exception as e:
-            logging.error(f"[{file_path}] An unexpected error occurred: {e}")
+
+        for batch_index, batch in enumerate(batches, start=1):
+            # Separate the current batch back into encoded images and URLs
+            batch_encoded_images = {item['path']: item['data'] for item in batch if item['type'] == 'encoded'}
+            batch_image_urls = [item['url'] for item in batch if item['type'] == 'url']
+
+            payload = {
+                "text": markdown_content,
+                "images": batch_encoded_images,
+                "image_urls": batch_image_urls
+            }
+
+            await rate_limiter.acquire(file_path, batch_index, len(batches))
+            try:
+                async with session.post(alttexter_endpoint, json=payload, headers=headers, timeout=ALTTEXTER_TIMEOUT) as response:
+                    response.raise_for_status()
+                    batch_response = await response.json()
+                    if isinstance(batch_response, dict) and 'images' in batch_response:
+                        all_image_metadata.extend(batch_response['images'])
+                    else:
+                        logging.error(f"[{file_path}] Unexpected response structure for batch {batch_index}")
+            except Exception as e:
+                logging.error(f"[{file_path}] An error occurred while processing the batch {batch_index}: {e}")
+
+        if all_image_metadata:
+            response_structure["data"]['images'] = all_image_metadata
+            response_structure["success"] = True
+        else:
+            logging.error(f"[{file_path}] Failed to retrieve image metadata for all batches")
 
         return response_structure
 
